@@ -44,9 +44,9 @@ class StarSystem:
         This acts as a multiplier for the star's energy budget.
         """
         star_type_brightness_map = {
-            'G-type': 1.0,  # Base brightness
-            'K-type': 0.8,  # Slightly dimmer
-            'M-type': 0.5   # Much dimmer
+            'G-type': 1.0e6,  # Base brightness
+            'K-type': 0.8e6,  # Slightly dimmer
+            'M-type': 0.5e6   # Much dimmer
         }
         return star_type_brightness_map.get(self.star_type, 1.0)  # Default to 1.0
 
@@ -103,8 +103,8 @@ class StarSystem:
         # Update energy budgets
         self.SSb['star_energy_power'] = self._calculate_star_power(global_time)
         if self.SSb['star_energy_power']!=0:
-            self.SSb['planets_power'] = self.random_gen.uniform(0.5, 2.0)  # Placeholder, would depend on actual planets
-            self.SSb['germination_planet_power'] = self.random_gen.uniform(0.1, 0.5)  # Placeholder
+            self.SSb['planets_power'] = self.random_gen.uniform(500, 10000)  # Placeholder, would depend on actual planets
+            self.SSb['germination_planet_power'] = self.random_gen.uniform(10, 500)  # Placeholder
         else:
             self.SSb['planets_power'] = 0
             self.SSb['germination_planet_power'] = 0
@@ -119,15 +119,18 @@ class StarSystem:
 
 # Example usage:
 if __name__ == "__main__":
-    system = StarSystem(seed=2, star_type="G-type")
+    system = StarSystem(seed=42, star_type="G-type")
 
-    global_times = range(int(50e6))  # Simulate for X time steps
+    global_times = range(int(5e6))  # Simulate for X time steps
     star_brightness = []
     danger_levels = []
-
+    Level_history = []  
+    Level=2
     for global_time in global_times:
         system.update(global_time)
         params = system.get_parameters()
+        Level=min(max(2,Level**1.01-params['danger']),params['star_energy_power']+params['planets_power']+params['germination_planet_power'])
+        Level_history.append(Level-2)
         star_brightness.append(params['star_energy_power'])
         danger_levels.append(params['danger'])
 
@@ -138,9 +141,10 @@ plt.figure(figsize=(10, 6))
 fig, ax1 = plt.subplots()
 
 ax1.set_xlabel("Global Time")
-ax1.set_ylabel("Star Brightness", color="gold")
-ax1.plot(global_times, star_brightness, label="Star Brightness", color="gold")
-ax1.tick_params(axis='y', labelcolor="gold")
+ax1.set_ylabel("Civilization level", color="Blue")
+ax1.plot(global_times, Level_history, label="Civilization Level", color="Blue")
+ax1.tick_params(axis='y', labelcolor="Blue")
+
 
 # Create the second axis for danger levels
 ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
