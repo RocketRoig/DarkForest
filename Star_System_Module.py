@@ -24,6 +24,8 @@ class StarSystem:
         self.cycle_length = self._calculate_cycle_length()
         self.brightness_factor = self._get_brightness_factor()
         self.danger_cycle_params = self._calculate_danger_params()
+        self.SSb['planets_power'] = self._initialize_planets_power()
+        self.SSb['germination_planet_power'] = self._initialize_germination_power()
 
     def _calculate_cycle_length(self):
         """
@@ -50,6 +52,18 @@ class StarSystem:
         }
         return star_type_brightness_map.get(self.star_type, 1.0)  # Default to 1.0
 
+    def _initialize_planets_power(self):
+        """
+        Initializes the power available from planets in the star system.
+        """
+        return self.random_gen.uniform(500, 10000)
+
+    def _initialize_germination_power(self):
+        """
+        Initializes the power available from the germination planet in the star system.
+        """
+        return self.random_gen.uniform(10, 500)
+
     def _calculate_star_power(self, global_time):
         """
         Calculates the star's energy budget at a given global time based on its cycle.
@@ -62,13 +76,13 @@ class StarSystem:
         Generates danger parameters: frequencies and amplitudes of sub-cycles.
         Includes both periodic and event-based dangers.
         """
-        num_cycles = 1#self.random_gen.randint(2, 5)
+        num_cycles = 1  # Simplified for clarity
         danger_params = []
 
         for cycle in range(num_cycles):
-            period = 5e6#self.random_gen.uniform(1e3, 5.0e6)
+            period = 5e6
             amplitude = period * self.random_gen.uniform(1.0, 3.0)
-            is_eventual = True #self.random_gen.choice([True, False])  # Danger comes from events
+            is_eventual = True
 
             danger_params.append({
                 'period': period,
@@ -102,12 +116,7 @@ class StarSystem:
         """
         # Update energy budgets
         self.SSb['star_energy_power'] = self._calculate_star_power(global_time)
-        if self.SSb['star_energy_power']!=0:
-            self.SSb['planets_power'] = self.random_gen.uniform(500, 10000)  # Placeholder, would depend on actual planets
-            self.SSb['germination_planet_power'] = self.random_gen.uniform(10, 500)  # Placeholder
-        else:
-            self.SSb['planets_power'] = 0
-            self.SSb['germination_planet_power'] = 0
+
         # Update resistance to progress (danger)
         self.SSb['danger'] = self._calculate_danger(global_time)
 
@@ -118,42 +127,42 @@ class StarSystem:
         return self.SSb
 
 # Example usage:
-if __name__ == "__main__":
-    system = StarSystem(seed=42, star_type="G-type")
+# if __name__ == "__main__":
+#     system = StarSystem(seed=42, star_type="G-type")
 
-    global_times = range(int(5e6))  # Simulate for X time steps
-    star_brightness = []
-    danger_levels = []
-    Level_history = []  
-    Level=2
-    for global_time in global_times:
-        system.update(global_time)
-        params = system.get_parameters()
-        Level=min(max(2,Level**1.01-params['danger']),params['star_energy_power']+params['planets_power']+params['germination_planet_power'])
-        Level_history.append(Level-2)
-        star_brightness.append(params['star_energy_power'])
-        danger_levels.append(params['danger'])
+#     global_times = range(int(5e6))  # Simulate for X time steps
+#     star_brightness = []
+#     danger_levels = []
+#     Level_history = []  
+#     Level=2
+#     for global_time in global_times:
+#         system.update(global_time)
+#         params = system.get_parameters()
+#         Level=min(max(2,Level**1.01-params['danger']),params['star_energy_power']+params['planets_power']+params['germination_planet_power'])
+#         Level_history.append(Level-2)
+#         star_brightness.append(params['star_energy_power'])
+#         danger_levels.append(params['danger'])
 
-# Plotting the results with dual y-axes
-plt.figure(figsize=(10, 6))
+# # Plotting the results with dual y-axes
+# plt.figure(figsize=(10, 6))
 
-# Create the first axis for star brightness
-fig, ax1 = plt.subplots()
+# # Create the first axis for star brightness
+# fig, ax1 = plt.subplots()
 
-ax1.set_xlabel("Global Time")
-ax1.set_ylabel("Civilization level", color="Blue")
-ax1.plot(global_times, Level_history, label="Civilization Level", color="Blue")
-ax1.tick_params(axis='y', labelcolor="Blue")
+# ax1.set_xlabel("Global Time")
+# ax1.set_ylabel("Civilization level", color="Blue")
+# ax1.plot(global_times, Level_history, label="Civilization Level", color="Blue")
+# ax1.tick_params(axis='y', labelcolor="Blue")
 
 
-# Create the second axis for danger levels
-ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-ax2.set_ylabel("Danger Levels", color="red")  
-ax2.plot(global_times, danger_levels, label="Danger Levels", color="red")
-ax2.tick_params(axis='y', labelcolor="red")
+# # Create the second axis for danger levels
+# ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+# ax2.set_ylabel("Danger Levels", color="red")  
+# ax2.plot(global_times, danger_levels, label="Danger Levels", color="red")
+# ax2.tick_params(axis='y', labelcolor="red")
 
-# Add titles and grid
-plt.title("Star Brightness and Danger Levels Over Time")
-fig.tight_layout()  # adjust spacing to prevent overlap
-plt.grid()
-plt.show()
+# # Add titles and grid
+# plt.title("Star Brightness and Danger Levels Over Time")
+# fig.tight_layout()  # adjust spacing to prevent overlap
+# plt.grid()
+# plt.show()
