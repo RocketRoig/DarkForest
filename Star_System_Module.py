@@ -16,16 +16,17 @@ class StarSystem:
         self.star_type = star_type
         self.SSb = {
             'germination_planet_power': 0,
-            'planets_power': 0,
-            'star_energy_budget': 0
+            'planets_power': 0
         }
 
         # Star cycle and danger configuration
+        self.SSb['planets_power'] = self._initialize_planets_power()
+        self.SSb['germination_planet_power'] = self._initialize_germination_planet_power()
+        self.SSb['germination_power'] = self._initialize_germination_power()
         self.cycle_length = self._calculate_cycle_length()
         self.brightness_factor = self._get_brightness_factor()
-        self.danger_cycle_params = self._calculate_danger_params()
-        self.SSb['planets_power'] = self._initialize_planets_power()
-        self.SSb['germination_planet_power'] = self._initialize_germination_power()
+        self.danger_cycle_params = self._calculate_danger_params(self.SSb)
+
 
     def _calculate_cycle_length(self):
         """
@@ -58,11 +59,17 @@ class StarSystem:
         """
         return self.random_gen.uniform(500, 10000)
 
-    def _initialize_germination_power(self):
+    def _initialize_germination_planet_power(self):
         """
         Initializes the power available from the germination planet in the star system.
         """
         return self.random_gen.uniform(10, 500)
+
+    def _initialize_germination_power(self):
+        """
+        Initializes the chances of germination on the orignin planet in the star system.
+        """
+        return 1*10**-self.random_gen.uniform(6, 8) #/time unit
 
     def _calculate_star_power(self, global_time):
         """
@@ -71,7 +78,7 @@ class StarSystem:
         phase = (2 * math.pi * global_time) / self.cycle_length
         return max(0, min(10 * math.sin(phase) * self.brightness_factor, self.brightness_factor))  # Brightness modulates the energy
 
-    def _calculate_danger_params(self):
+    def _calculate_danger_params(self,SSb):
         """
         Generates danger parameters: frequencies and amplitudes of sub-cycles.
         Includes both periodic and event-based dangers.
@@ -81,7 +88,7 @@ class StarSystem:
 
         for cycle in range(num_cycles):
             period = 5e6
-            amplitude = period * self.random_gen.uniform(1.0, 3.0)
+            amplitude = SSb['germination_planet_power']
             is_eventual = True
 
             danger_params.append({
@@ -101,10 +108,25 @@ class StarSystem:
         for cycle in self.danger_cycle_params:
             phase = (2 * math.pi * global_time) / cycle['period']
             if cycle['is_eventual']:
-                # Event-based danger: higher chance of occurrence at peaks
-                danger += cycle['amplitude'] * 1000 * math.exp(-(((1-abs(self.random_gen.gauss(0, 1/3))) - 0) ** 2) / (2 * ((math.cos(phase) + 1.00001) / 3000) ** 2))
+                # Event-based danger: higher chance of occurrence at peaks                
+                self.event_probability = 10**(-6+3*(0.5+0.5*math.cos(phase)))
+
+                # Check if the event should trigger
+                if self.random_gen.random() < self.event_probability:
+                    danger += -cycle['amplitude'] * math.exp(-0.5*(((1 - abs(self.random_gen.gauss(0, (1/ 3))) - 0)/(1 / 9)) ** 2))
+                else:
+                    danger += 0
             else:
-                danger += cycle['amplitude'] * math.sin(phase) + cycle['amplitude']
+                danger += -cycle['amplitude'] * math.sin(phase) + cycle['amplitude']
+        # Probability of triggering (e.g., 30% chance)
+        genesis_probability = self.SSb['germination_power'] #/time unit
+
+        # Check if the event should trigger
+        if self.random_gen.random() < genesis_probability:
+            self.germination_event = 0.1
+        else:
+            self.germination_event = 0
+        danger+=self.germination_event
         return danger
 
     def update(self, global_time):
