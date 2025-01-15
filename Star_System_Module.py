@@ -76,7 +76,7 @@ class StarSystem:
         Calculates the star's energy budget at a given global time based on its cycle.
         """
         phase = (2 * math.pi * global_time) / self.cycle_length
-        return max(0, min(10 * math.sin(phase) * self.brightness_factor, self.brightness_factor))  # Brightness modulates the energy
+        return self.brightness_factor #max(0, min(10 * math.sin(phase) * self.brightness_factor, self.brightness_factor))  # Brightness modulates the energy #removed dynamic behaviour to test a static energy enviroment
 
     def _calculate_danger_params(self,SSb):
         """
@@ -109,7 +109,7 @@ class StarSystem:
             phase = (2 * math.pi * global_time) / cycle['period']
             if cycle['is_eventual']:
                 # Event-based danger: higher chance of occurrence at peaks                
-                self.event_probability = 10**(-6+3*(0.5+0.5*math.cos(phase)))
+                self.event_probability = 10**(-8+3*(0.5+0.5*math.cos(phase)))
 
                 # Check if the event should trigger
                 if self.random_gen.random() < self.event_probability:
