@@ -1,6 +1,6 @@
 import random
 import math
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 class StarSystem:
     def __init__(self, seed, star_type):

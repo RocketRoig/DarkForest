@@ -1,7 +1,7 @@
 import random
 import math
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 
 
@@ -31,7 +31,7 @@ class Civilization:
         self.colonization_attack=None
         # Initialize awareness map
         self.awareness_map=self._initialize_awareness_map()
-
+        
     def _initialize_awareness_map(self):
         """
         Generates the initial awareness map from the star map.
@@ -130,8 +130,6 @@ class Civilization:
         """
         Updates the civilization's parameters for the current time step.
         """
-        if global_time == 900000:
-            print(f" Civ {self.civ_id}-{self.group_id} year {global_time} : {communications_list}")
         #self.star_system.update(global_time)  # Update the star system for the current time step
         energy_budget = self.star_system.get_parameters()
 
@@ -168,10 +166,10 @@ class Civilization:
         Updates the awareness map based on received communications and generates messages for allies when updates occur.
         """
         communications = []  # List of new communications to be sent
-        pre_awareness_map = self.awareness_map  # Preserve the previous state of the awareness map
+        pre_awareness_map = {key: value.copy() for key, value in self.awareness_map.items()}  # Preserve the previous state of the awareness map
         
         if communications_list:
-            print("Hurrey")
+            
             for communication in communications_list:
                 # Check if the communication is directed at this civilization's star system
                 if (communication['mssg_arrival'] == global_time and 
@@ -180,7 +178,7 @@ class Civilization:
                     origin = communication['Origin']
                     if (self.awareness_map[origin]['civilization_id'] != communication['Sender_id'] or
                         self.awareness_map[origin]['group_id'] != communication['sender_group']):
-                        print(f"making updates on map {self.awareness_map[origin]}")
+                        
                         # Update awareness map
                         self.awareness_map[origin]['civilization_id'] = communication['Sender_id']
                         self.awareness_map[origin]['group_id'] = communication['sender_group']
@@ -190,7 +188,7 @@ class Civilization:
                             self.awareness_map[origin]["relationship"] = "Enemy"
                         elif ( self.group_id == communication['sender_group'] and self.civ_id != communication['Sender_id']):
                             self.awareness_map[origin]["relationship"] = "Ally"
-                            print(f"New Ally {self.awareness_map[origin]} before {pre_awareness_map[origin]}")
+                            
 
 
         for star_index_, data in self.awareness_map.items():
@@ -212,7 +210,7 @@ class Civilization:
                             "mssg_send_time": global_time,
                         }
                         communications.append(outgoing_message)
-                        print(f"sending message {communications}")
+                        
         # Set communications to None if no messages were generated
         if not communications:
             communications = None

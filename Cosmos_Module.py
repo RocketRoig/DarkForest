@@ -1,6 +1,4 @@
 import random
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from Star_System_Module import StarSystem
 from Civilization_Module import Civilization
 from vpython import sphere, vector, color, arrow, canvas,helix,rate
@@ -115,10 +113,9 @@ class Cosmos:
             if civilization.star_system is not None:  # Only update active civilizations
                 params = civilization.get_parameters()
                 if params['communications']:  # Check if the civilization has communications
-                    print("There is comms")
                     for communication in params['communications']:  # Loop through all communications
                         self.communications_list.append(communication)  # Append each communication
-                        print(f"Communication sent from Civ {civilization.civ_id}: {communication}")
+                        #print(f"Communication sent from Civ {civilization.civ_id}: {communication}")
 
     def _civilizations_clash(self, global_time):  
         """
@@ -222,13 +219,11 @@ class Cosmos:
             for communication in self.communications_list:
                 if (communication['mssg_arrival'] == global_time and communication['destinatary'] == star_system.index):
                     self.new_comms.append(communication)
-                    print("comms appended")
+
 
             self.attack_list.append(self.new_attack)  # Append attack aligned with star_system index
             self.comms_recieved_list.append(self.new_comms)  # Append comms aligned with star_system index
-            if global_time ==1000000:
-
-                print("Communications Received List: ", self.comms_recieved_list)
+  
 
 
         return self.attack_list, self.comms_recieved_list
@@ -266,28 +261,29 @@ class Cosmos:
                         "Sender_id": 0,
                         "sender_group": 0,
                         "attack_cost": 0.1,
-                        "attack_energy": 250,
+                        "attack_energy": 500,
                         "attack_speed": 0.05,
-                        "attack_distance": 10,
+                        "attack_distance": 78487.67592027376,
                         "attack_arrival": 500000,
                         "attack_send_time":250000,
                         }
             self.colonization_list.append(colonization_t)
-                #test comms
-        if global_time ==900000:
-            new_comms_t={
-                "destinatary": 5,
-                "Origin": 15,
-                "Sender_id": 2,
-                "sender_group": 0,
-                "mssg_distance": 400,
-                "mssg_arrival": 1000000,
-                "mssg_send_time": 900000,
-            }
-            self.communications_list.append(new_comms_t)
-            print(self.communications_list)  
-        if global_time ==1000001:
-            print(f"year {global_time} and {self.communications_list}")  
+        if global_time ==250000:
+            #test initiation
+            colonization_t={
+                        "destinatary": 15,
+                        "Origin":5,
+                        "Sender_id": 0,
+                        "sender_group": 0,
+                        "attack_cost": 0.01,
+                        "attack_energy": 500,
+                        "attack_speed": 0.05,
+                        "attack_distance": 78487.67592027376,
+                        "attack_arrival": 888300,
+                        "attack_send_time":250000,
+                        }
+            self.colonization_list.append(colonization_t)
+ 
         for star_system in self.star_systems:
             star_system.update(global_time)
 
@@ -379,6 +375,7 @@ class Cosmos:
         for global_time in range(steps):
             # Only visualize on specified intervals
             if global_time % visualization_interval == 0:
+                
                 if step_delay is not None:
                     rate(1 / step_delay)  # Apply delay if provided
 
@@ -464,8 +461,8 @@ class Cosmos:
                                 pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
                                 axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
                                 shaftwidth=0.2,  # Thin arrow
-                                headwidth=0,    # No head
-                                headlength=0,   # No head
+                                headwidth=1,    # No head
+                                headlength=1,   # No head
                                 color=vector(0, 1, 0),  # Green
                                 opacity=0.5
                             )
@@ -547,20 +544,5 @@ if __name__ == "__main__":
     num_star_systems = 20
     cosmos = Cosmos(seed=12345, num_star_systems=num_star_systems)
     time_steps = int(25e6)
-    cosmos.visualize_simulation(steps=time_steps, step_delay=None,visualization_interval=10000)
-    # # Plot the star systems
-    # cosmos.plot_star_systems()
+    cosmos.visualize_simulation(steps=time_steps, step_delay=None,visualization_interval=1000)
 
-    # #Retrieve and print status of the cosmos
-    # cosmos_status = cosmos.get_status()
-    # print("Star Systems:")
-    # for star_system in cosmos_status["star_systems"]:
-    #     print(f"Star System {star_system['index']}: {star_system}")
-
-    # print("\nCivilizations:")
-    # for civilization in cosmos_status["civilizations"]:
-    #     print(f"Civilization {civilization['index']}: {civilization}")
-
-    # print("\nCivilization Groups:")
-    # for group_id, group in cosmos_status["civilization_groups"].items():
-    #     print(f"Group {group_id}: {group}")
