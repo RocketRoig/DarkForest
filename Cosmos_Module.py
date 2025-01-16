@@ -3,6 +3,8 @@ from Star_System_Module import StarSystem
 from Civilization_Module import Civilization
 from vpython import sphere, vector, color, arrow, canvas,helix,rate
 import math
+import sys
+import time
 
 class Cosmos:
     star_map = {} # Global star map: {index: {"position": position, "type": star_type, "seed": star_seed}}
@@ -17,6 +19,7 @@ class Cosmos:
         self.seed = seed
         self.random_gen = random.Random(seed)
         self.num_star_systems = num_star_systems
+        self.star_density=0.004 # Solay system region ~0.004 stars per cubic light year
         self.star_systems = []
         self.civilizations = []
         self.civilization_groups = {}  # Groups of civilizations by origin
@@ -68,7 +71,8 @@ class Cosmos:
                     new_civilization.index = civ_id  
                     self.civilization_groups[group_id] = [new_civilization]
                     new_civilization.group_id = group_id
-                    print("Created civilization:" + str(new_civilization.index)+"-"+str(new_civilization.group_id)+". On Year: "+str(global_time)+". On Star: "+str(star_system.index))
+                    sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                    print("Created civilization:" + str(new_civilization.index)+"-"+str(new_civilization.group_id)+". On Year: "+str(global_time)+". On Star: "+str(star_system.index)+"\n")
                     self.civilizations.append(new_civilization)
 
     def monitor_civilization_energy(self):
@@ -80,7 +84,8 @@ class Cosmos:
             if civilization.star_system is not None:  # Only update active civilizations
                 params = civilization.get_parameters()
                 if params['energy_consumption'] <= 0:
-                    print(f"Civilization {civilization.index} in Star System {civilization.star_system.index} has died on Year: {global_time}")
+                    sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                    print(f"Civilization {civilization.index} in Star System {civilization.star_system.index} has died on Year: {global_time}\n")
                     civilization.star_system = None  # Set the star system to None
                     #self.civilizations.remove(civilization)
     def update_colonizations(self):
@@ -91,7 +96,8 @@ class Cosmos:
             if civilization.star_system is not None:  # Only update active civilizations
                 params = civilization.get_parameters()
                 if params['colonization_attack'] != None:
-                    print(f"Civilization {civilization.index}-{civilization.group_id} from Star System {civilization.star_system.index} is attacking Star System {params['colonization_attack']['destinatary']} on Year: {global_time}. The attack will arrive on Year: {params['colonization_attack']['attack_arrival']} .")
+                    sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                    print(f"Civilization {civilization.index}-{civilization.group_id} from Star System {civilization.star_system.index} is attacking Star System {params['colonization_attack']['destinatary']} on Year: {global_time}. The attack will arrive on Year: {params['colonization_attack']['attack_arrival']} .\n")
                     colonization={
                     "destinatary": params['colonization_attack']['destinatary'],
                     "Origin":params['colonization_attack']['Origin'],
@@ -133,6 +139,7 @@ class Cosmos:
                 if (colonization['attack_send_time'] == global_time - 1 and 
                     colonization['Origin'] == star_system.index):
                     self.new_attack += -colonization['attack_cost']
+                    sys.stdout.write("\033[J")  # Clear everything below the current cursor position
                     print(f"{colonization['Sender_id']} from star {colonization['Origin']} must Pay attack of: {self.new_attack}")
 
                 # Handle receiving attacks
@@ -148,7 +155,8 @@ class Cosmos:
                         params = civilization.get_parameters()
                         if civilization.group_id == colonization['sender_group']:  # Allied colonization
                             self.new_attack += colonization['attack_energy']
-                            print(f"Allied colonization, energy added: {colonization['attack_energy']}")
+                            sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                            print(f"Allied colonization, energy added: {colonization['attack_energy']}\n")
 
                             # Create communications for allies
                             self.new_comms.append({
@@ -157,24 +165,25 @@ class Cosmos:
                                 "Sender_id": colonization['Sender_id'],
                                 "sender_group": colonization['sender_group'],
                                 "mssg_distance": 0,
-                                "mssg_arrival": global_time+1,
+                                "mssg_arrival": global_time,
                                 "mssg_send_time": global_time,
                             })
                         elif params['energy_consumption'] > colonization['attack_energy']:  # Resisted attack
                             self.new_attack += -colonization['attack_energy']
-                            print(f"ATTACKED: Civilization {civilization.civ_id} resisted attack from {colonization['Sender_id']}.")
+                            sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                            print(f"ATTACKED: Civilization {civilization.civ_id}-{civilization.group_id} resisted attack from {colonization['Sender_id']}-{colonization['sender_group']}.\n")
                             # revealed position attacker
-                            self.new_comms.append({
+                            self.communications_list.append({
                                 "destinatary": star_system.index,
                                 "Origin": colonization['Origin'],
                                 "Sender_id": colonization['Sender_id'],
                                 "sender_group": colonization['sender_group'],
                                 "mssg_distance": 0,
-                                "mssg_arrival": global_time+1,
+                                "mssg_arrival": global_time,
                                 "mssg_send_time": global_time,
                             })
                             # revelad survival civilization
-                            self.new_comms.append({
+                            self.communications_list.append({
                                 "destinatary": colonization['Origin'],
                                 "Origin": star_system.index,
                                 "Sender_id": civilization.index,
@@ -185,7 +194,8 @@ class Cosmos:
                             })
                         elif params['energy_consumption'] < colonization['attack_energy']:  # Destroyed in attack
                             self.new_attack += -colonization['attack_energy']
-                            print(f"ATTACKED: Civilization {civilization.civ_id} perished in attack from {colonization['Sender_id']}.")
+                            sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+                            print(f"ATTACKED: Civilization {civilization.civ_id}-{civilization.group_id} perished in attack from {colonization['Sender_id']}-{colonization['sender_group']}.\n")
 
                             # Remaining energy becomes new colonization attempt
                             self.colonization_list.append({
@@ -211,6 +221,15 @@ class Cosmos:
                                 "sender_group": new_group,
                                 "mssg_distance": colonization['attack_distance'],
                                 "mssg_arrival": int(global_time+colonization['attack_distance']),
+                                "mssg_send_time": global_time,
+                            })
+                        self.communications_list.append({
+                                "destinatary": star_system.index,
+                                "Origin": colonization['Origin'],
+                                "Sender_id": colonization['Sender_id'],
+                                "sender_group": colonization['sender_group'],
+                                "mssg_distance": colonization['attack_distance'],
+                                "mssg_arrival": global_time+1,
                                 "mssg_send_time": global_time,
                             })
                         self.new_attack += self.panspermia_energy
@@ -243,7 +262,8 @@ class Cosmos:
             new_civilization.index = new_civ_id  
             self.civilization_groups[group_id] = [new_civilization]
             new_civilization.group_id = group_id
-            print("Colonized civilization:" + str(new_civilization.index)+"-"+str(new_civilization.group_id)+". On Year: "+str(global_time)+". On Star: "+str(star_system.index)+" with energy: "+str(pansnpermia_energy))
+            sys.stdout.write("\033[J")  # Clear everything below the current cursor position
+            print("Colonized civilization:" + str(new_civilization.index)+"-"+str(new_civilization.group_id)+". On Year: "+str(global_time)+". On Star: "+str(star_system.index)+" with energy: "+str(pansnpermia_energy)+"\n")
             self.civilizations.append(new_civilization)
             return new_civ_id,group_id
     def update(self, global_time):
@@ -254,7 +274,7 @@ class Cosmos:
         - global_time (int): Current global time step.
         """
         if global_time ==250000:
-            #test initiation
+        #test initiation
             colonization_t={
                         "destinatary": 7,
                         "Origin":5,
@@ -268,22 +288,6 @@ class Cosmos:
                         "attack_send_time":250000,
                         }
             self.colonization_list.append(colonization_t)
-        if global_time ==250000:
-            #test initiation
-            colonization_t={
-                        "destinatary": 15,
-                        "Origin":5,
-                        "Sender_id": 0,
-                        "sender_group": 0,
-                        "attack_cost": 0.01,
-                        "attack_energy": 500,
-                        "attack_speed": 0.05,
-                        "attack_distance": 78487.67592027376,
-                        "attack_arrival": 888300,
-                        "attack_send_time":250000,
-                        }
-            self.colonization_list.append(colonization_t)
- 
         for star_system in self.star_systems:
             star_system.update(global_time)
 
@@ -322,9 +326,54 @@ class Cosmos:
             }
         }
         return status
+    def display_data(self,global_time, star_systems, civilizations):
+        """
+        Refreshes the console with a table of stars, civilizations, and their relationships.
+
+        Parameters:
+        - global_time: The current simulation year.
+        - star_systems: List of star system objects.
+        - civilizations: List of civilization objects.
+        """
+        # Collect all rows of the table
+        table_rows = []
+
+        # Add the header row
+        table_rows.append(f"Simulation Year: {global_time}\n")
+        table_rows.append(f"{'Star':<8}{'Civilization':<15}{'Colonizing':<25}{'Enemies':<25}{'Allies':<25}{'Level':<8}{'Energy':<10}\n")
+        table_rows.append("-" * 130 + "\n")
+
+        # Iterate over all stars and civilizations
+        for star in star_systems:
+            # Find civilization associated with the star
+            civ = next((c for c in civilizations if c.star_system and c.star_system.index == star.index), None)
+            if civ:
+                # Extract awareness data
+                colonizing = [f"{k}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Colonizing"]
+                enemies = [f"{v['civilization_id']}-{v['group_id']}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Enemy"]
+                allies = [f"{v['civilization_id']}-{v['group_id']}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Ally"]
+                # Truncate the colonizing string if it exceeds MAX_CHARACTERS
+                colonizing_str = ','.join(colonizing)
+                if len(colonizing_str) > 20:
+                    colonizing_str = colonizing_str[:20 - 3] + '...'
+                # Format the row for this star and civilization
+                table_rows.append(f"{star.index:<8}{f'{civ.civ_id}-{civ.group_id}':<15}{colonizing_str:<25}"
+                                f"{','.join(enemies):<25}{','.join(allies):<25}"
+                                f"{civ.kardashev_level:<8}{civ.energy_consumption:<10.2f}\n")
+            else:
+                # If no civilization, just print the star
+                table_rows.append(f"{star.index:<8}{'None':<15}{'-':<25}{'-':<25}{'-':<25}{'-':<8}{'-':<10}\n")
+        # Calculate the number of rows in the table
+        table_size = len(table_rows)
+        # Clear the region occupied by the table
+
+        sys.stdout.write(''.join(table_rows))  # Print the updated table
+        sys.stdout.write(f"\033[{ table_size}A")  # Move cursor back to the start of the table
+        
+        sys.stdout.flush()
 
 
-    def visualize_simulation(self, steps, step_delay, visualization_interval):
+    def run_simulation(self,visualization, steps, step_delay, visualization_interval):
         """
         Visualizes the simulation with optional skipping of visualization steps.
 
@@ -333,184 +382,188 @@ class Cosmos:
         - step_delay (float): Optional delay between steps (None for max speed).
         - visualization_interval (int): Number of steps to skip between visual updates.
         """
+        print(f"______Starting simulation_____\n\n\n\n")
         global global_time
+        if visualization:
+            # Map star types to shapes and colors
+            shape_map = {
+                'G-type': sphere,
+                'K-type': sphere,
+                'M-type': sphere
+            }
+            color_map = {None: vector(1, 1, 1)}  # Default to white
+            color_map.update(self.generate_color_map(20))  # Add dynamic colors
 
-        # Map star types to shapes and colors
-        shape_map = {
-            'G-type': sphere,
-            'K-type': sphere,
-            'M-type': sphere
-        }
-        color_map = {None: vector(1, 1, 1)}  # Default to white
-        color_map.update(self.generate_color_map(20))  # Add dynamic colors
+            # Determine the maximum coordinate value in each axis
+            max_coords = [max(abs(star_system.position[i]) for star_system in self.star_systems) for i in range(3)]
 
-        # Determine the maximum coordinate value in each axis
-        max_coords = [max(abs(star_system.position[i]) for star_system in self.star_systems) for i in range(3)]
+            # Define the desired maximum range (max position + 100)
+            max_position = 100 + 1  # Adjust for sphere radius (default is 1)
 
-        # Define the desired maximum range (max position + 100)
-        max_position = 100 + 1  # Adjust for sphere radius (default is 1)
+            # Scaling factors for each axis
+            scaling_factors = [max_position / max_coord if max_coord != 0 else 1 for max_coord in max_coords]
 
-        # Scaling factors for each axis
-        scaling_factors = [max_position / max_coord if max_coord != 0 else 1 for max_coord in max_coords]
-
-        # Create VPython objects for all stars with scaled positions
-        star_objects = {}
-        for star_system in self.star_systems:
-            # Scale each position component
-            scaled_position = [
-                star_system.position[i] * scaling_factors[i] for i in range(3)
-            ]
-            star_pos = vector(*scaled_position)  # Convert to VPython vector
-            star_objects[star_system.index] = shape_map[star_system.type](
-                pos=star_pos, radius=1, color=color_map[None],emmisive=True
-            )
-        # Dictionary to store active arrows and moving spheres
-        active_arrows = {}
-        moving_spheres = {}
-        # Dictionary to store active communication arrows and moving spirals
-        active_communications = {}
-        moving_spirals = {}
+            # Create VPython objects for all stars with scaled positions
+            star_objects = {}
+            for star_system in self.star_systems:
+                # Scale each position component
+                scaled_position = [
+                    star_system.position[i] * scaling_factors[i] for i in range(3)
+                ]
+                star_pos = vector(*scaled_position)  # Convert to VPython vector
+                star_objects[star_system.index] = shape_map[star_system.type](
+                    pos=star_pos, radius=1, color=color_map[None],emmisive=True
+                )
+            # Dictionary to store active arrows and moving spheres
+            active_arrows = {}
+            moving_spheres = {}
+            # Dictionary to store active communication arrows and moving spirals
+            active_communications = {}
+            moving_spirals = {}
 
         # Main simulation loop
         for global_time in range(steps):
-            # Only visualize on specified intervals
-            if global_time % visualization_interval == 0:
-                
-                if step_delay is not None:
-                    rate(1 / step_delay)  # Apply delay if provided
-
-                # Update visualization for civilizations
-                for civilization in self.civilizations:
-                    if civilization.star_system:
-                        star_index = civilization.star_system.index
-                        star_color = color_map.get(civilization.group_id, vector(1, 1, 1))
-                        energy_ratio = civilization.energy_consumption / (
-                            civilization.star_system.get_parameters()['star_energy_power'] +
-                            civilization.star_system.get_parameters()['planets_power'] +
-                            civilization.star_system.get_parameters()['germination_planet_power']
-                        )
-                        star_objects[star_index].color = star_color
-                        star_objects[star_index].radius = 1 + energy_ratio * 5
-
-                # Draw and manage colonization vectors
-                for colonization in self.colonization_list:
-                    start_star = self.star_systems[colonization["Origin"]]
-                    end_star = self.star_systems[colonization["destinatary"]]
-
-                    # Calculate colonization progress
-                    total_time = colonization["attack_arrival"] - colonization["attack_send_time"]
-                    elapsed_time = global_time - colonization["attack_send_time"]
-                    progress = elapsed_time / total_time if total_time > 0 else 1
-
-                    # Check if colonization is ongoing
-                    if colonization["attack_arrival"] > global_time:
-                        # Create or update colonization arrow
-                        if colonization["destinatary"] not in active_arrows:
-                            active_arrows[colonization["destinatary"]] = arrow(
-                                pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                shaftwidth=1,
-                                headwidth=3,
-                                headlength=5,
-                                color=vector(1, 1, 0),  # Yellow
-                                opacity=0.5
-                            )
-
-                        # Create or update moving sphere
-                        if colonization["destinatary"] not in moving_spheres:
-                            moving_spheres[colonization["destinatary"]] = sphere(
-                                pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                radius=2,
-                                color=vector(0, 1, 1),  # Cyan
-                                opacity=1
-                            )
-
-                        # Update moving sphere position
-                        moving_spheres[colonization["destinatary"]].pos = vector(
-                            *(
-                                start_star.position[i] * scaling_factors[i] +
-                                progress * (end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i])
-                                for i in range(3)
-                            )
-                        )
-                    else:
-                        # Remove colonization arrow and sphere when colonization ends
-                        if colonization["destinatary"] in active_arrows:
-                            active_arrows[colonization["destinatary"]].visible = False
-                            del active_arrows[colonization["destinatary"]]
-
-                        if colonization["destinatary"] in moving_spheres:
-                            moving_spheres[colonization["destinatary"]].visible = False
-                            del moving_spheres[colonization["destinatary"]]
-
-                # Draw and manage communication vectors
-                for communication in self.communications_list:
-                    start_star = self.star_systems[communication["Origin"]]
-                    end_star = self.star_systems[communication["destinatary"]]
-
-                    # Calculate communication progress
-                    total_time = communication["mssg_arrival"] - communication["mssg_send_time"]
-                    elapsed_time = global_time - communication["mssg_send_time"]
-                    progress = elapsed_time / total_time if total_time > 0 else 1
-
-                    # Check if communication is ongoing
-                    if communication["mssg_arrival"] > global_time:
-                        # Create or update communication arrow (thin with no head)
-                        if communication["destinatary"] not in active_communications:
-                            active_communications[communication["destinatary"]] = arrow(
-                                pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                shaftwidth=0.2,  # Thin arrow
-                                headwidth=1,    # No head
-                                headlength=1,   # No head
-                                color=vector(0, 1, 0),  # Green
-                                opacity=0.5
-                            )
-
-                        # Create or update moving helix
-                        if communication["destinatary"] not in moving_spirals:
-                            moving_spirals[communication["destinatary"]] = helix(
-                                pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                axis=vector(1, 0, 0),  # Temporary axis, will be updated
-                                radius=1,              # Radius of the helix
-                                thickness=1,           # Thickness of the helix
-                                length=1,              # Length of the helix
-                                coils=2,               # Number of coils
-                                color=vector(1, 0, 1), # Magenta
-                            )
-
-                        # Update helix position and axis
-                        moving_spirals[communication["destinatary"]].pos = vector(
-                            *(start_star.position[i] * scaling_factors[i] +
-                            progress * (end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i])
-                            for i in range(3))
-                        )
-                        # Compute the raw vector
-                        raw_axis = vector(
-                            *(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i]
-                            for i in range(3))
-                        )
-
-                        # Normalize the vector and scale it by a fixed scalar
-                        axis_length = raw_axis.mag  # Magnitude of the raw axis
-                        scalar = 10  # Fixed scalar for the spiral's axis length
-                        normalized_axis = raw_axis.norm() * scalar if axis_length > 0 else vector(0, 0, 0)
-
-                        # Update the helix axis
-                        moving_spirals[communication["destinatary"]].axis = normalized_axis
-                    else:
-                        # Remove communication arrow and helix when communication ends
-                        if communication["destinatary"] in active_communications:
-                            active_communications[communication["destinatary"]].visible = False
-                            del active_communications[communication["destinatary"]]
-
-                        if communication["destinatary"] in moving_spirals:
-                            moving_spirals[communication["destinatary"]].visible = False
-                            del moving_spirals[communication["destinatary"]]
-
-
             # Update simulation state every step
-            self.update(global_time)
+            self.update(global_time)            
+            # Only visualize on specified intervals
+            if global_time % visualization_interval == 0: #> 0 : #
+                #sys.stdout.write(f"Year: {global_time}\r")
+                self.display_data(global_time, cosmos.star_systems, cosmos.civilizations)
+                if visualization:
+                    if step_delay is not None:
+                        rate(1 / step_delay)  # Apply delay if provided
+
+                    # Update visualization for civilizations
+                    for civilization in self.civilizations:
+                        if civilization.star_system:
+                            star_index = civilization.star_system.index
+                            star_color = color_map.get(civilization.group_id, vector(1, 1, 1))
+                            energy_ratio = civilization.energy_consumption / (
+                                civilization.star_system.get_parameters()['star_energy_power'] +
+                                civilization.star_system.get_parameters()['planets_power'] +
+                                civilization.star_system.get_parameters()['germination_planet_power']
+                            )
+                            star_objects[star_index].color = star_color
+                            star_objects[star_index].radius = 1 + energy_ratio * 5
+
+                    # Draw and manage colonization vectors
+                    for colonization in self.colonization_list:
+                        start_star = self.star_systems[colonization["Origin"]]
+                        end_star = self.star_systems[colonization["destinatary"]]
+
+                        # Calculate colonization progress
+                        total_time = colonization["attack_arrival"] - colonization["attack_send_time"]
+                        elapsed_time = global_time - colonization["attack_send_time"]
+                        progress = elapsed_time / total_time if total_time > 0 else 1
+
+                        # Check if colonization is ongoing
+                        if colonization["attack_arrival"] > global_time:
+                            # Create or update colonization arrow
+                            if colonization["destinatary"] not in active_arrows:
+                                active_arrows[colonization["destinatary"]] = arrow(
+                                    pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    shaftwidth=1,
+                                    headwidth=3,
+                                    headlength=5,
+                                    color=vector(1, 1, 0),  # Yellow
+                                    opacity=0.5
+                                )
+
+                            # Create or update moving sphere
+                            if colonization["destinatary"] not in moving_spheres:
+                                moving_spheres[colonization["destinatary"]] = sphere(
+                                    pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    radius=2,
+                                    color=vector(0, 1, 1),  # Cyan
+                                    opacity=1
+                                )
+
+                            # Update moving sphere position
+                            moving_spheres[colonization["destinatary"]].pos = vector(
+                                *(
+                                    start_star.position[i] * scaling_factors[i] +
+                                    progress * (end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i])
+                                    for i in range(3)
+                                )
+                            )
+                        else:
+                            # Remove colonization arrow and sphere when colonization ends
+                            if colonization["destinatary"] in active_arrows:
+                                active_arrows[colonization["destinatary"]].visible = False
+                                del active_arrows[colonization["destinatary"]]
+
+                            if colonization["destinatary"] in moving_spheres:
+                                moving_spheres[colonization["destinatary"]].visible = False
+                                del moving_spheres[colonization["destinatary"]]
+
+                    # Draw and manage communication vectors
+                    for communication in self.communications_list:
+                        start_star = self.star_systems[communication["Origin"]]
+                        end_star = self.star_systems[communication["destinatary"]]
+
+                        # Calculate communication progress
+                        total_time = communication["mssg_arrival"] - communication["mssg_send_time"]
+                        elapsed_time = global_time - communication["mssg_send_time"]
+                        progress = elapsed_time / total_time if total_time > 0 else 1
+
+                        # Check if communication is ongoing
+                        if communication["mssg_arrival"] > global_time:
+                            # Create or update communication arrow (thin with no head)
+                            if communication["destinatary"] not in active_communications:
+                                active_communications[communication["destinatary"]] = arrow(
+                                    pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    shaftwidth=0.2,  # Thin arrow
+                                    headwidth=1,    # No head
+                                    headlength=1,   # No head
+                                    color=vector(0, 1, 0),  # Green
+                                    opacity=0.5
+                                )
+
+                            # Create or update moving helix
+                            if communication["destinatary"] not in moving_spirals:
+                                moving_spirals[communication["destinatary"]] = helix(
+                                    pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
+                                    axis=vector(1, 0, 0),  # Temporary axis, will be updated
+                                    radius=1,              # Radius of the helix
+                                    thickness=1,           # Thickness of the helix
+                                    length=1,              # Length of the helix
+                                    coils=2,               # Number of coils
+                                    color=vector(1, 0, 1), # Magenta
+                                )
+
+                            # Update helix position and axis
+                            moving_spirals[communication["destinatary"]].pos = vector(
+                                *(start_star.position[i] * scaling_factors[i] +
+                                progress * (end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i])
+                                for i in range(3))
+                            )
+                            # Compute the raw vector
+                            raw_axis = vector(
+                                *(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i]
+                                for i in range(3))
+                            )
+
+                            # Normalize the vector and scale it by a fixed scalar
+                            axis_length = raw_axis.mag  # Magnitude of the raw axis
+                            scalar = 10  # Fixed scalar for the spiral's axis length
+                            normalized_axis = raw_axis.norm() * scalar if axis_length > 0 else vector(0, 0, 0)
+
+                            # Update the helix axis
+                            moving_spirals[communication["destinatary"]].axis = normalized_axis
+                        else:
+                            # Remove communication arrow and helix when communication ends
+                            if communication["destinatary"] in active_communications:
+                                active_communications[communication["destinatary"]].visible = False
+                                del active_communications[communication["destinatary"]]
+
+                            if communication["destinatary"] in moving_spirals:
+                                moving_spirals[communication["destinatary"]].visible = False
+                                del moving_spirals[communication["destinatary"]]
+
+
+
 
         print("Visualization complete.")
 
@@ -544,5 +597,5 @@ if __name__ == "__main__":
     num_star_systems = 20
     cosmos = Cosmos(seed=12345, num_star_systems=num_star_systems)
     time_steps = int(25e6)
-    cosmos.visualize_simulation(steps=time_steps, step_delay=None,visualization_interval=1000)
+    cosmos.run_simulation(visualization=False,steps=time_steps, step_delay=None,visualization_interval=5000)
 
