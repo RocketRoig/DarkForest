@@ -14,6 +14,7 @@ class StarSystem:
         self.seed = seed
         self.random_gen = random.Random(seed)  # Independent random generator for reproducibility
         self.star_type = star_type
+        self.SS_L_ref=3.28e11 # Sun luminosity ref in Peta Watts
         self.SSb = {
             'germination_planet_power': 0,
             'planets_power': 0
@@ -36,7 +37,11 @@ class StarSystem:
         star_type_cycle_map = {
             'G-type': (8e6, 12e6),
             'K-type': (15e5, 25e6),
-            'M-type': (25e6, 35e6)
+            'M-type': (25e6, 35e6),
+            'F-type': (25e6, 35e6),
+            'A-type': (25e6, 35e6),
+            'B-type': (25e6, 35e6),
+            'O-type': (25e6, 35e6)
         }
         cycle_range = star_type_cycle_map.get(self.star_type, (10e6, 20e6))
         return self.random_gen.uniform(*cycle_range)
@@ -44,32 +49,39 @@ class StarSystem:
     def _get_brightness_factor(self):
         """
         Determines the brightness factor for the star type.
-        This acts as a multiplier for the star's energy budget.
+        This acts as a multiplier for the star's energy budget. The brightness is relatinve to the sun ref brightness
         """
-        star_type_brightness_map = {
-            'G-type': 1.0e6,  # Base brightness
-            'K-type': 0.8e6,  # Slightly dimmer
-            'M-type': 0.5e6   # Much dimmer
+        star_type_brightness_range = {
+            'G-type': (0.5, 1.5),
+            'K-type': (0.08, 0.6),
+            'M-type': (0.01, 0.08),
+            'F-type': (1.5, 10),
+            'A-type': (10, 10e2),
+            'B-type': (10e2, 10e4),
+            'O-type': (10e4, 10e6)
         }
-        return star_type_brightness_map.get(self.star_type, 1.0)  # Default to 1.0
+        self.SS_L_ref
+        brightness_range = star_type_brightness_range.get(self.star_type, (10e6, 20e6))
+        return self.random_gen.uniform(*brightness_range)*self.SS_L_ref
+        
 
     def _initialize_planets_power(self):
         """
         Initializes the power available from planets in the star system.
         """
-        return self.random_gen.uniform(500, 10000)
+        return self.random_gen.uniform(300, 3000)
 
     def _initialize_germination_planet_power(self):
         """
         Initializes the power available from the germination planet in the star system.
         """
-        return self.random_gen.uniform(10, 500)
+        return self.random_gen.uniform(21.2, 300)
 
     def _initialize_germination_power(self):
         """
         Initializes the chances of germination on the orignin planet in the star system.
         """
-        return 1*10**-self.random_gen.uniform(6, 8) #/time unit
+        return 10e-14 #/time unit
 
     def _calculate_star_power(self, global_time):
         """
@@ -123,7 +135,7 @@ class StarSystem:
 
         # Check if the event should trigger
         if self.random_gen.random() < genesis_probability:
-            self.germination_event = 0.1
+            self.germination_event = self.random_gen.uniform(14, 15)
         else:
             self.germination_event = 0
         danger+=self.germination_event

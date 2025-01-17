@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Visualization</title>
+    <meta http-equiv="refresh" content="2">
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 4px; /* Reduce padding for compact cells */
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-size: 14px; /* Smaller font for headers */
+        }
+        td {
+            font-size: 12px; /* Smaller font for table data */
+            line-height: 1; /* Reduce line height */
+        }
+        tr:nth-child(even) {background-color: #f9f9f9;}
+        tr:hover {background-color: #ddd;}
+        .scrollable {
+            max-height: 300px; /* Adjust height as needed */
+            overflow-y: auto;
+        }
+    </style>    
+</head>
+<body>
+    <h2>Simulation Year: {{ global_time }}</h2>
+
+    <h2>Star Systems</h2>
+    <div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Star Index</th>
+                    <th>Civilization</th>
+                    <th>Colonizing</th>
+                    <th>Enemies</th>
+                    <th>Allies</th>
+                    <th>K Level</th>
+                    <th>Civ. Power</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for star in star_systems %}
+                <tr>
+                    <td>{{ star.index }}</td>
+                    <td>{{ star.civilization or '-' }}</td>
+                    <td>{{ star.colonizing }}</td>
+                    <td>{{ star.enemies }}</td>
+                    <td>{{ star.allies }}</td>
+                    <td>{{ star.kardashev_level }}</td>
+                    <td>{{ star.energy_consumption }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Communications Logs</h2>
+    <div class="scrollable">
+        <table>
+            <thead>
+                <tr>
+                    <th>Destinatary</th>
+                    <th>Origin</th>
+                    <th>Civilization</th>
+                    <th>Send Time</th>
+                    <th>Arrival Time</th>
+                    <th>Distance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comm in communications_list %}
+                <tr>
+                    <td>{{ comm.destinatary }}</td>
+                    <td>{{ comm.origin }}</td>
+                    <td>{{ comm.civ }}</td>
+                    <td>{{ comm.send_time }}</td>
+                    <td>{{ comm.arrival_time }}</td>
+                    <td>{{ comm.mssg_distance }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

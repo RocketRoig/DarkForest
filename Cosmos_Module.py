@@ -5,6 +5,8 @@ from vpython import sphere, vector, color, arrow, canvas,helix,rate
 import math
 import sys
 import time
+import threading
+from flask_app import app, simulation_data  # Import the Flask app and shared data
 
 class Cosmos:
     star_map = {} # Global star map: {index: {"position": position, "type": star_type, "seed": star_seed}}
@@ -19,7 +21,7 @@ class Cosmos:
         self.seed = seed
         self.random_gen = random.Random(seed)
         self.num_star_systems = num_star_systems
-        self.star_density=0.004 # Solay system region ~0.004 stars per cubic light year
+        self.stars_density=0.0008 # Solay system region ~0.004 stars with habitable planets per cubic light year
         self.star_systems = []
         self.civilizations = []
         self.civilization_groups = {}  # Groups of civilizations by origin
@@ -32,7 +34,7 @@ class Cosmos:
         """
         Creates star systems and assigns each a random position.
         """
-        star_types = ['G-type', 'K-type', 'M-type']
+        star_types = ['G-type', 'K-type', 'M-type','F-type','A-type','B-type','O-type']
         for i in range(self.num_star_systems):
             # Create Star System
             star_seed = self.random_gen.randint(0, int(1e9))
@@ -43,10 +45,12 @@ class Cosmos:
             
 
             # Assign a random position in 3D space
+            Volume_simulation=self.num_star_systems/self.stars_density
+            Length_simulation=Volume_simulation**(1/3)
             position = (
-                self.random_gen.uniform(-1e5, 1e5),  # X-axis position
-                self.random_gen.uniform(-1e5, 1e5),  # Y-axis position
-                self.random_gen.uniform(-1e5, 1e5)   # Z-axis position
+                self.random_gen.uniform(-Length_simulation/2, Length_simulation/2),  # X-axis position
+                self.random_gen.uniform(-Length_simulation/2, Length_simulation/2),  # Y-axis position
+                self.random_gen.uniform(-Length_simulation/2, Length_simulation/2)   # Z-axis position
             )
             star_system.position = position
             Cosmos.star_map[i] = {"position": position, "type": star_type, "seed": star_seed}
@@ -58,6 +62,8 @@ class Cosmos:
         """
         for star_system in self.star_systems:
             params = star_system.get_parameters()
+            if star_system.index in [0,19] and global_time == 1:
+                params['danger'] = 10e-5
             if params['danger'] > 0:  # Germination event detected
                 # Check if a civilization already exists in this star system
                 existing_civilization = next((civ for civ in self.civilizations if civ.star_system == star_system), None)
@@ -272,22 +278,8 @@ class Cosmos:
 
         Parameters:
         - global_time (int): Current global time step.
-        """
-        if global_time ==250000:
-        #test initiation
-            colonization_t={
-                        "destinatary": 7,
-                        "Origin":5,
-                        "Sender_id": 0,
-                        "sender_group": 0,
-                        "attack_cost": 0.1,
-                        "attack_energy": 500,
-                        "attack_speed": 0.05,
-                        "attack_distance": 78487.67592027376,
-                        "attack_arrival": 500000,
-                        "attack_send_time":250000,
-                        }
-            self.colonization_list.append(colonization_t)
+        """  
+
         for star_system in self.star_systems:
             star_system.update(global_time)
 
@@ -326,51 +318,52 @@ class Cosmos:
             }
         }
         return status
-    def display_data(self,global_time, star_systems, civilizations):
+    def display_data(self, global_time, star_systems, civilizations):
         """
-        Refreshes the console with a table of stars, civilizations, and their relationships.
+        Refreshes the console with a table of stars, civilizations, and their relationships,
+        and ensures proper cursor positioning.
 
         Parameters:
         - global_time: The current simulation year.
         - star_systems: List of star system objects.
         - civilizations: List of civilization objects.
         """
-        # Collect all rows of the table
-        table_rows = []
-
-        # Add the header row
-        table_rows.append(f"Simulation Year: {global_time}\n")
-        table_rows.append(f"{'Star':<8}{'Civilization':<15}{'Colonizing':<25}{'Enemies':<25}{'Allies':<25}{'Level':<8}{'Energy':<10}\n")
-        table_rows.append("-" * 130 + "\n")
-
+                # Update simulation data
+        simulation_data["global_time"] = global_time
         # Iterate over all stars and civilizations
+        simulation_data["star_systems"] =[]
+        simulation_data["communications_list"]=[]
         for star in star_systems:
-            # Find civilization associated with the star
             civ = next((c for c in civilizations if c.star_system and c.star_system.index == star.index), None)
             if civ:
-                # Extract awareness data
                 colonizing = [f"{k}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Colonizing"]
                 enemies = [f"{v['civilization_id']}-{v['group_id']}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Enemy"]
                 allies = [f"{v['civilization_id']}-{v['group_id']}" for k, v in civ.awareness_map.items() if v.get("relationship") == "Ally"]
-                # Truncate the colonizing string if it exceeds MAX_CHARACTERS
+
                 colonizing_str = ','.join(colonizing)
                 if len(colonizing_str) > 20:
                     colonizing_str = colonizing_str[:20 - 3] + '...'
-                # Format the row for this star and civilization
-                table_rows.append(f"{star.index:<8}{f'{civ.civ_id}-{civ.group_id}':<15}{colonizing_str:<25}"
-                                f"{','.join(enemies):<25}{','.join(allies):<25}"
-                                f"{civ.kardashev_level:<8}{civ.energy_consumption:<10.2f}\n")
-            else:
-                # If no civilization, just print the star
-                table_rows.append(f"{star.index:<8}{'None':<15}{'-':<25}{'-':<25}{'-':<25}{'-':<8}{'-':<10}\n")
-        # Calculate the number of rows in the table
-        table_size = len(table_rows)
-        # Clear the region occupied by the table
 
-        sys.stdout.write(''.join(table_rows))  # Print the updated table
-        sys.stdout.write(f"\033[{ table_size}A")  # Move cursor back to the start of the table
-        
-        sys.stdout.flush()
+                simulation_data["star_systems"].append(
+                {"index": star.index, 
+                 "type": "-", 
+                 "civilization": f'{civ.civ_id}-{civ.group_id}', 
+                "colonizing": f"{colonizing_str:<25}", 
+                "enemies": f"{','.join(enemies):<25}", 
+                "allies": f"{','.join(allies):<25}",
+                "kardashev_level": f"{civ.kardashev_level}",
+                "energy_consumption": f"{civ.energy_consumption}"})
+       
+            else:
+                simulation_data["star_systems"].append(
+                {"index": star.index, "type": "-", "civilization": f'-', 
+                "colonizing": f"-", "enemies": f"-", "allies": f"-","kardashev_level": f"-",
+                "energy_consumption": f"-"})
+        for comms in self.communications_list:
+            simulation_data["communications_list"].append(
+            {"destinatary": f"{comms['destinatary']}", "origin": f"{comms['Origin']}", "civ": f"{comms['Sender_id']}-{comms['Sender_id']}", 
+            "send_time": f"{comms['mssg_send_time']}", "arrival_time": f"{comms['mssg_arrival']}", "mssg_distance": f"{comms['mssg_distance']}"})
+ 
 
 
     def run_simulation(self,visualization, steps, step_delay, visualization_interval):
@@ -389,8 +382,13 @@ class Cosmos:
             shape_map = {
                 'G-type': sphere,
                 'K-type': sphere,
-                'M-type': sphere
+                'M-type': sphere,
+                'F-type': sphere,
+                'A-type': sphere,
+                'B-type': sphere,
+                'O-type': sphere
             }
+            ['G-type', 'K-type', 'M-type','F-type','A-type','B-type','O-type']
             color_map = {None: vector(1, 1, 1)}  # Default to white
             color_map.update(self.generate_color_map(20))  # Add dynamic colors
 
@@ -424,10 +422,10 @@ class Cosmos:
         # Main simulation loop
         for global_time in range(steps):
             # Update simulation state every step
-            self.update(global_time)            
+            self.update(global_time) 
+            time.sleep(0.0001)           
             # Only visualize on specified intervals
-            if global_time % visualization_interval == 0: #> 0 : #
-                #sys.stdout.write(f"Year: {global_time}\r")
+            if global_time % visualization_interval == 0:
                 self.display_data(global_time, cosmos.star_systems, cosmos.civilizations)
                 if visualization:
                     if step_delay is not None:
@@ -589,13 +587,22 @@ class Cosmos:
             color_map[i] = vector(rgb[0], rgb[1], rgb[2])  # Convert to VPython color
 
         return color_map
+    def start_flask():
+        app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+
 
 # Example usage
 
 if __name__ == "__main__":
     scene = canvas(resizable=True,width=1200, height=600, title="Simulation Canvas")
     num_star_systems = 20
+    # Start the Flask app in a separate thread
+    flask_thread = threading.Thread(target=Cosmos.start_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+
     cosmos = Cosmos(seed=12345, num_star_systems=num_star_systems)
     time_steps = int(25e6)
-    cosmos.run_simulation(visualization=False,steps=time_steps, step_delay=None,visualization_interval=5000)
+    cosmos.run_simulation(visualization=True,steps=time_steps, step_delay=None,visualization_interval=10)
 

@@ -91,7 +91,8 @@ class Civilization:
         """
         if self.energy_consumption <= total_energy_available:
             abundance_factor = 1 - (self.energy_consumption / (total_energy_available if total_energy_available > 1 else 1))
-            self.growth_rate = 1 +  abundance_factor*0.0001
+            k=0.0015
+            self.growth_rate = np.exp(k) - 1   #1 + 0.0002 #abundance_factor*0.0001
         else:
             self.growth_rate = 1
     def _update_energy_consumption(self, total_energy_available):
@@ -101,7 +102,7 @@ class Civilization:
         """
         StarParameters = self.star_system.get_parameters()
         danger_impact = StarParameters['danger']
-        self.energy_consumption = (((self.energy_consumption+1)**self.growth_rate)-1) + danger_impact - self.extinction_risk
+        self.energy_consumption = self.energy_consumption+self.energy_consumption*self.growth_rate + danger_impact - self.extinction_risk
         if self.attack_energy > 0:
             self.energy_consumption = max(0, min(self.energy_consumption, (total_energy_available if total_energy_available > 1 else 1)))
             self.energy_consumption +=self.attack_energy
@@ -189,9 +190,9 @@ class Civilization:
                         self.awareness_map[origin]["last_update_time"] = global_time
                         
                         if self.group_id != communication['sender_group']:
-                            print("enemy detected")
+                            
                             self.awareness_map[origin]["relationship"] = "Enemy"
-                            print(self.awareness_map[origin])
+                            
                         if ( self.group_id == communication['sender_group'] and self.civ_id != communication['Sender_id']):
                             self.awareness_map[origin]["relationship"] = "Ally"
 
@@ -252,10 +253,10 @@ class Civilization:
                     "Sender_id": self.civ_id,
                     "sender_group": self.group_id,
                     "attack_cost": self.energy_consumption*0.1,  # 10% of civilization energy
-                    "attack_energy": self.energy_consumption*0.05,  # 50% of the attack is energy
+                    "attack_energy": self.energy_consumption*0.01,  # 50% of the attack is energy
                     "attack_speed": 0.05,  # Arbritary 5% of light speed. The speed and the two energies could be dynamic between eachother.
                     "attack_distance": int(min_distance),
-                    "attack_arrival": global_time+int(min_distance/0.05),  # Time the attack will arrive at 0.05 light speed
+                    "attack_arrival": global_time+int(min_distance/0.001),  # Time the attack will arrive at 0.05 light speed
                     "attack_send_time": global_time,
                 }
         return colonization_attack
