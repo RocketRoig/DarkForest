@@ -50,8 +50,8 @@ class Civilization:
                 "civilization_id": None,  # Initially unknown
                 "group_id": None,  # Initially unknown
                 "relationship": None,  # Initially unknown
-                "last_update_time": -1,  # No updates yet
-                "Known_energy": None, # No updates yet
+                "time_stamp": -1,  # No updates yet
+                "known_energy": None, # No updates yet
 
             }
             if star_index==self.star_system.index:
@@ -134,6 +134,9 @@ class Civilization:
         """
         #self.star_system.update(global_time)  # Update the star system for the current time step
         energy_budget = self.star_system.get_parameters()
+        self.limit_KL_2=energy_budget['germination_planet_power']
+        self.limit_KL_3=energy_budget['germination_planet_power']+energy_budget['planets_power']
+        self.limit_KL_4=energy_budget['germination_planet_power']+energy_budget['planets_power']+energy_budget['star_energy_power']
 
         if self.kardashev_level >= 3:
             total_energy_available = (
@@ -180,21 +183,25 @@ class Civilization:
                     communication['destinatary'] == self.star_system.index):
                     # Check if the awareness map needs to be updated
                     
-                    origin = communication['Origin']
-                    if (self.awareness_map[origin]['civilization_id'] != communication['Sender_id'] or
-                        self.awareness_map[origin]['group_id'] != communication['sender_group']):
-                        
+                    position = communication['Position']
+                    if ((self.awareness_map[position]['civilization_id'] != communication['target_id'] or
+                        self.awareness_map[position]['group_id'] != communication['target_group'] or
+                        (self.awareness_map[position]['known_energy'] != communication['target_energy'] and
+                         communication['target_energy'] != None )) and
+                         self.awareness_map[position]['time_stamp'] < communication['time_stamp']):
+                        #when time stam is newer and there is a unpdate on energy consumption or civilization Id, then:
                         # Update awareness map
-                        self.awareness_map[origin]['civilization_id'] = communication['Sender_id']
-                        self.awareness_map[origin]['group_id'] = communication['sender_group']
-                        self.awareness_map[origin]["last_update_time"] = global_time
+                        self.awareness_map[position]['civilization_id'] = communication['target_id']
+                        self.awareness_map[position]['group_id'] = communication['target_group']
+                        self.awareness_map[position]["known_energy"] = communication['target_energy']
+                        self.awareness_map[position]["time_stamp"] = communication['time_stamp']
                         
-                        if self.group_id != communication['sender_group']:
+                        if self.group_id != communication['target_group']:
                             
-                            self.awareness_map[origin]["relationship"] = "Enemy"
+                            self.awareness_map[position]["relationship"] = "Enemy"
                             
-                        if ( self.group_id == communication['sender_group'] and self.civ_id != communication['Sender_id']):
-                            self.awareness_map[origin]["relationship"] = "Ally"
+                        if ( self.group_id == communication['target_group'] and self.civ_id != communication['target_id']):
+                            self.awareness_map[position]["relationship"] = "Ally"
 
 
         for star_index_, data in self.awareness_map.items():
@@ -202,15 +209,18 @@ class Civilization:
                 for star_index, current_data in self.awareness_map.items():
                     prev_data = pre_awareness_map.get(star_index, {})
 
-                    fields_to_check = ["civilization_id", "group_id"]
+                    fields_to_check = ["civilization_id", "group_id","known_energy"]
 
                     # Compare only the relevant fields
                     if any(current_data.get(field) != prev_data.get(field) for field in fields_to_check):
                         outgoing_message={
                             "destinatary": star_index_,  # Send to this ally star
-                            "Origin": star_index,  # Message reveals target star
-                            "Sender_id": current_data.get("civilization_id"),  # Message reveals target civiization
-                            "sender_group": current_data.get("group_id"), # Message reveals target civilization group
+                            "Origin": self.star_system.index,  # Message reveals the message origin
+                            "Position": star_index, # Message reveals the target position
+                            "target_id": current_data.get("civilization_id"),  # Message reveals target civiization
+                            "target_group": current_data.get("group_id"), # Message reveals target civilization group
+                            "target_energy":current_data.get("Known_energy"), # Message reveals target energy consumption
+                            "time_stamp":current_data.get("time_stamp"), #time stamp to track updated intelligence.
                             "mssg_distance": self.awareness_map[star_index_]["distance"],  # Distance to the ally star
                             "mssg_arrival": int(global_time + self.awareness_map[star_index_]["distance"]),  # Arrival time
                             "mssg_send_time": global_time,
@@ -228,37 +238,45 @@ class Civilization:
         Plans an attack based on the current awareness map and Kardashev level.
         """
         colonization_attack=None
-        if self.kardashev_level == 4:
+        max_danger=0
+        target_star_index = None
+        for E_star_index,E_star_data in self.awareness_map.items():
+                if E_star_data["relationship"] =="Enemy" and E_star_data["known_energy"] is not None:
+                    max_danger=max(max_danger,E_star_data["known_energy"])
+        
+        if (max_danger==0 and self.energy_consumption > 2*self.limit_KL_3):
             min_distance = float('inf')
-            target_star_index = None
-
             for star_index, star_data in self.awareness_map.items():
                 if star_data["relationship"] =="Enemy": # Relationships that must be target
                     if star_data["distance"] < min_distance:
                         min_distance = star_data["distance"]
                         target_star_index = star_index
-                elif star_data["relationship"] ==None: # Relationships that must be target
+                elif star_data["relationship"] ==None: #  Potential empty Star to colonize
                     if star_data["distance"] < min_distance:
                         min_distance = star_data["distance"]
                         target_star_index = star_index
                         self.awareness_map[target_star_index]["relationship"] = "Colonizing"
+                        self.awareness_map[target_star_index]["time_stamp"] = global_time
+        if max_danger>0 and self.energy_consumption>max_danger*10:
+            for star_index, star_data in self.awareness_map.items():
+                if star_data["known_energy"] ==max_danger:
+                    target_star_index = star_index
+                    min_distance = star_data["distance"]
 
-            if target_star_index is not None:
-                self.awareness_map[target_star_index]["last_update_time"] = global_time
-
-                #print(f"Targeting star index {target_star_index} with minimum distance {min_distance}")
-                colonization_attack= {
-                    "destinatary": target_star_index,
-                    "Origin":self.star_system.index,
-                    "Sender_id": self.civ_id,
-                    "sender_group": self.group_id,
-                    "attack_cost": self.energy_consumption*0.1,  # 10% of civilization energy
-                    "attack_energy": self.energy_consumption*0.01,  # 50% of the attack is energy
-                    "attack_speed": 0.05,  # Arbritary 5% of light speed. The speed and the two energies could be dynamic between eachother.
-                    "attack_distance": int(min_distance),
-                    "attack_arrival": global_time+int(min_distance/0.001),  # Time the attack will arrive at 0.05 light speed
-                    "attack_send_time": global_time,
-                }
+        #print(f"Targeting star index {target_star_index} with minimum distance {min_distance}")
+        if target_star_index is not None:
+            colonization_attack= {
+                "destinatary": target_star_index,
+                "Origin":self.star_system.index,
+                "Sender_id": self.civ_id,
+                "sender_group": self.group_id,
+                "attack_cost": self.energy_consumption*0.5,  # 50% of civilization energy
+                "attack_energy": self.energy_consumption*0.5*0.1,  # 10% of the attack is destrutive power
+                "attack_speed": 0.01,  # Arbritary 5% of light speed. The speed and the two energies could be dynamic between eachother.
+                "attack_distance": int(min_distance),
+                "attack_arrival": global_time+int(min_distance/0.01),  # Time the attack will arrive at 0.01 light speed
+                "attack_send_time": global_time,
+            }
         return colonization_attack
     def get_parameters(self):
         """

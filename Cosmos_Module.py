@@ -62,7 +62,7 @@ class Cosmos:
         """
         for star_system in self.star_systems:
             params = star_system.get_parameters()
-            if star_system.index in [0,19] and global_time == 1:
+            if star_system.index in [7,5] and global_time == 1:
                 params['danger'] = 10e-5
             if params['danger'] > 0:  # Germination event detected
                 # Check if a civilization already exists in this star system
@@ -168,8 +168,11 @@ class Cosmos:
                             self.new_comms.append({
                                 "destinatary": star_system.index,
                                 "Origin": colonization['Origin'],
-                                "Sender_id": colonization['Sender_id'],
-                                "sender_group": colonization['sender_group'],
+                                "Position": colonization['Origin'],
+                                "target_id": colonization['Sender_id'],
+                                "target_group": colonization['sender_group'],
+                                "target_energy": None,
+                                "time_stamp": -1,
                                 "mssg_distance": 0,
                                 "mssg_arrival": global_time,
                                 "mssg_send_time": global_time,
@@ -182,8 +185,11 @@ class Cosmos:
                             self.communications_list.append({
                                 "destinatary": star_system.index,
                                 "Origin": colonization['Origin'],
-                                "Sender_id": colonization['Sender_id'],
-                                "sender_group": colonization['sender_group'],
+                                "Position": colonization['Origin'],
+                                "target_id": colonization['Sender_id'],
+                                "target_group": colonization['sender_group'],
+                                "target_energy": None,
+                                "time_stamp": global_time,
                                 "mssg_distance": 0,
                                 "mssg_arrival": global_time,
                                 "mssg_send_time": global_time,
@@ -192,8 +198,11 @@ class Cosmos:
                             self.communications_list.append({
                                 "destinatary": colonization['Origin'],
                                 "Origin": star_system.index,
-                                "Sender_id": civilization.index,
-                                "sender_group": civilization.group_id,
+                                "Position": star_system.index,
+                                "target_id": civilization.index,
+                                "target_group": civilization.group_id,
+                                "target_energy": params['energy_consumption']-colonization['attack_energy'],
+                                "time_stamp": global_time,
                                 "mssg_distance": colonization['attack_distance'],
                                 "mssg_arrival": int(global_time+colonization['attack_distance']),
                                 "mssg_send_time": global_time,
@@ -223,8 +232,11 @@ class Cosmos:
                         self.communications_list.append({
                                 "destinatary": colonization['Origin'],
                                 "Origin": star_system.index,
-                                "Sender_id": new_civ,
-                                "sender_group": new_group,
+                                "Position": star_system.index,
+                                "target_id": new_civ,
+                                "target_group": new_group,
+                                "target_energy": self.panspermia_energy,
+                                "time_stamp":global_time,
                                 "mssg_distance": colonization['attack_distance'],
                                 "mssg_arrival": int(global_time+colonization['attack_distance']),
                                 "mssg_send_time": global_time,
@@ -232,8 +244,11 @@ class Cosmos:
                         self.communications_list.append({
                                 "destinatary": star_system.index,
                                 "Origin": colonization['Origin'],
-                                "Sender_id": colonization['Sender_id'],
-                                "sender_group": colonization['sender_group'],
+                                "Position": colonization['Origin'],
+                                "target_id": colonization['Sender_id'],
+                                "target_group": colonization['sender_group'],
+                                "target_energy":None,
+                                "time_stamp": -1,
                                 "mssg_distance": colonization['attack_distance'],
                                 "mssg_arrival": global_time+1,
                                 "mssg_send_time": global_time,
@@ -361,7 +376,7 @@ class Cosmos:
                 "energy_consumption": f"-"})
         for comms in self.communications_list:
             simulation_data["communications_list"].append(
-            {"destinatary": f"{comms['destinatary']}", "origin": f"{comms['Origin']}", "civ": f"{comms['Sender_id']}-{comms['Sender_id']}", 
+            {"destinatary": f"{comms['destinatary']}", "origin": f"{comms['Origin']}", "civ": f"{comms['target_id']}-{comms['target_id']}", 
             "send_time": f"{comms['mssg_send_time']}", "arrival_time": f"{comms['mssg_arrival']}", "mssg_distance": f"{comms['mssg_distance']}"})
  
 
@@ -423,7 +438,7 @@ class Cosmos:
         for global_time in range(steps):
             # Update simulation state every step
             self.update(global_time) 
-            time.sleep(0.0001)           
+            #           
             # Only visualize on specified intervals
             if global_time % visualization_interval == 0:
                 self.display_data(global_time, cosmos.star_systems, cosmos.civilizations)
@@ -461,9 +476,9 @@ class Cosmos:
                                 active_arrows[colonization["destinatary"]] = arrow(
                                     pos=vector(*(start_star.position[i] * scaling_factors[i] for i in range(3))),
                                     axis=vector(*(end_star.position[i] * scaling_factors[i] - start_star.position[i] * scaling_factors[i] for i in range(3))),
-                                    shaftwidth=1,
-                                    headwidth=3,
-                                    headlength=5,
+                                    shaftwidth=0.5,
+                                    headwidth=1,
+                                    headlength=1,
                                     color=vector(1, 1, 0),  # Yellow
                                     opacity=0.5
                                 )
@@ -603,6 +618,6 @@ if __name__ == "__main__":
 
 
     cosmos = Cosmos(seed=12345, num_star_systems=num_star_systems)
-    time_steps = int(25e6)
-    cosmos.run_simulation(visualization=True,steps=time_steps, step_delay=None,visualization_interval=10)
+    time_steps = int(5*10e4)
+    cosmos.run_simulation(visualization=True,steps=time_steps, step_delay=0.02,visualization_interval=10)
 
